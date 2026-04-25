@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulse Rescue - 두근두근 핑크 하트</title>
+    <style>
+        :root {
+            --heart-pink: #ff748c;
+            --soft-pink: #ffe0e6;
+            --bg-dark: #1a1a2e;
+        }
+
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Pretendard', sans-serif;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 450px;
+            height: 850px;
+            background: #fff;
+            border-radius: 40px;
+            box-shadow: 0 20px 60px rgba(255, 116, 140, 0.3);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            border: 10px solid #fff;
+            overflow: hidden; /* 인트로 화면이 밖으로 나가지 않게 */
+        }
+
+        /* ==================== 인트로 & 카운트다운 스타일 ==================== */
+        #introScreen {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            text-align: center;
+            padding: 20px;
+            transition: opacity 0.5s;
+        }
+
+        .intro-logo { font-size: 60px; margin-bottom: 20px; animation: pulse 1.5s infinite; }
+        .intro-title { font-size: 38px; font-weight: 900; color: var(--heart-pink); margin-bottom: 10px; }
+        .intro-desc { font-size: 16px; color: #666; margin-bottom: 40px; line-height: 1.5; }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        #startBtn {
+            background: var(--heart-pink);
+            color: #fff; border: none;
+            padding: 20px 60px; border-radius: 50px;
+            font-size: 20px; font-weight: 900; cursor: pointer;
+            box-shadow: 0 10px 25px rgba(255, 116, 140, 0.4);
+        }
+
+        /* 카운트다운 숫자 스타일 */
+        #countdownOverlay {
+            position: absolute;
+            inset: 0;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            background: rgba(255, 255, 255, 0.5);
+            pointer-events: none;
+        }
+
+        #countdownText {
+            font-size: 120px;
+            font-weight: 900;
+            color: var(--heart-pink);
+            text-shadow: 0 0 30px rgba(255, 116, 140, 0.5);
+            animation: countZoom 1s infinite;
+        }
+
+        @keyframes countZoom {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+
+        /* ==================== 기존 게임 UI 스타일 ==================== */
+        .header {
+            padding: 25px;
+            background: #fff;
+            border-bottom: 2px solid var(--soft-pink);
+            border-radius: 30px 30px 0 0;
+            z-index: 10;
+        }
+
+        .stats-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .score-box .label { font-size: 12px; color: var(--heart-pink); font-weight: 800; }
+        .score-box .value { font-size: 36px; font-weight: 900; color: #444; }
+
+        .animal-shelf {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 10px;
+            background: var(--soft-pink);
+            border-radius: 15px;
+            scrollbar-width: none;
+        }
+
+        .animal-icon {
+            font-size: 22px;
+            filter: grayscale(100%);
+            opacity: 0.2;
+            transition: 0.4s;
+            flex-shrink: 0;
+        }
+        .animal-icon.saved { filter: grayscale(0%); opacity: 1; transform: scale(1.2); }
+
+        .game-wrapper { flex: 1; position: relative; overflow: hidden; background: linear-gradient(to bottom, #fff, var(--soft-pink)); }
+        canvas { width: 100%; height: 100%; cursor: pointer; }
+
+        #rescueAlert {
+            position: absolute;
+            top: 30%; left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            background: var(--heart-pink);
+            color: #fff;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-weight: 900;
+            opacity: 0;
+            transition: 0.4s;
+            pointer-events: none;
+        }
+        #rescueAlert.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+        .modal {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.98);
+            display: none;
+            flex-direction: column;
+            padding: 40px 30px;
+            z-index: 1000;
+            border-radius: 30px;
+            align-items: center;
+            text-align: center;
+        }
+        .modal.show { display: flex; }
+        .modal h2 { color: var(--heart-pink); font-size: 32px; margin-bottom: 10px; }
+        .rescue-summary { font-size: 18px; margin: 20px 0; line-height: 1.6; color: #555; }
+        .rescued-emojis { font-size: 30px; margin-bottom: 20px; letter-spacing: 5px; }
+
+        .leaderboard {
+            width: 100%;
+            background: var(--soft-pink);
+            border-radius: 20px;
+            padding: 10px;
+            margin-bottom: 25px;
+        }
+        .rank-item {
+            display: flex; justify-content: space-between;
+            padding: 10px 15px; font-weight: 700;
+        }
+        .rank-item.highlight { background: #fff; border-radius: 10px; color: var(--heart-pink); }
+
+        .restart-btn {
+            background: var(--heart-pink);
+            color: #fff; border: none;
+            padding: 18px 40px; border-radius: 20px;
+            font-size: 18px; font-weight: bold; cursor: pointer;
+        }
+
+        .combo-section { padding: 20px; text-align: center; background: #fff; }
+        .combo-num { font-size: 45px; font-weight: 900; color: var(--heart-pink); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="introScreen">
+            <div class="intro-logo">💗</div>
+            <div class="intro-title">PULSE RESCUE</div>
+            <div class="intro-desc">
+                하트가 점선 라인에 겹쳤을 때 터치하세요!<br>
+                멈춰버린 생명의 심장을 다시 뛰게 해주세요.
+            </div>
+            <button id="startBtn" onclick="initStart()">박동 시작</button>
+        </div>
+
+        <div id="countdownOverlay">
+            <div id="countdownText">준비</div>
+        </div>
+
+        <div class="header">
+            <div class="stats-top">
+                <div class="score-box">
+                    <div class="label">RESCUE SCORE</div>
+                    <div id="scoreVal" class="value">0</div>
+                </div>
+                <div id="hpDisplay" style="font-size: 22px;">💗💗💗</div>
+            </div>
+            <div class="animal-shelf" id="animalShelf"></div>
+        </div>
+
+        <div class="game-wrapper">
+            <canvas id="gameCanvas"></canvas>
+            <div id="rescueAlert">✨ 구조 완료! ✨</div>
+            
+            <div class="modal" id="resultModal">
+                <h2>MISSION REPORT</h2>
+                <div class="rescue-summary" id="rescueSummary"></div>
+                <div class="rescued-emojis" id="rescuedEmojis"></div>
+                
+                <div class="label" style="margin-bottom: 10px; font-weight: 800;">🏆 랭킹 현황판</div>
+                <div class="leaderboard" id="leaderboard"></div>
+
+                <button class="restart-btn" onclick="location.reload()">다시 심장 살리기</button>
+            </div>
+        </div>
+
+        <div class="combo-section">
+            <div id="comboVal" class="combo-num">0</div>
+            <div style="color:#aaa; font-weight:bold; font-size:12px;">SUCCESSIVE PULSE</div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let audioCtx;
+    
+    let state = {
+        score: 0, combo: 0, hp: 3,
+        hearts: [], running: false, savedLevels: []
+    };
+
+    const ANIMALS = [
+        { score: 50, name: "햄스터", emoji: "🐹" },
+        { score: 150, name: "개미", emoji: "🐜" },
+        { score: 300, name: "개구리", emoji: "🐸" },
+        { score: 500, name: "토끼", emoji: "🐰" },
+        { score: 800, name: "고양이", emoji: "🐈" },
+        { score: 1200, name: "강아지", emoji: "🐕" },
+        { score: 1800, name: "기린", emoji: "🦒" },
+        { score: 2500, name: "코끼리", emoji: "🐘" },
+        { score: 4000, name: "대왕고래", emoji: "🐳" },
+        { score: 7000, name: "전설의 용", emoji: "🐉" }
+    ];
+
+    function playHeartSound() {
+        if(!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+    }
+
+    const shelf = document.getElementById('animalShelf');
+    ANIMALS.forEach(a => {
+        const s = document.createElement('span');
+        s.className = 'animal-icon';
+        s.id = `a-${a.score}`;
+        s.textContent = a.emoji;
+        shelf.appendChild(s);
+    });
+
+    function resize() {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+    }
+    window.onresize = resize;
+    resize();
+
+    function drawHeart(x, y, size, color) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x, y + size / 4);
+        ctx.bezierCurveTo(x, y, x - size/2, y, x - size/2, y + size/4);
+        ctx.bezierCurveTo(x - size/2, y + size/2, x, y + size*0.8, x, y + size);
+        ctx.bezierCurveTo(x, y + size*0.8, x + size/2, y + size/2, x + size/2, y + size/4);
+        ctx.bezierCurveTo(x + size/2, y, x, y, x, y + size/4);
+        ctx.fillStyle = color;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = 'rgba(255, 116, 140, 0.4)';
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function update() {
+        if (!state.running) return;
+
+        if (Math.random() < 0.03) {
+            state.hearts.push({
+                x: Math.random() * (canvas.width - 80) + 40,
+                y: -50,
+                size: 45,
+                speed: 5 + (state.score / 1000)
+            });
+        }
+
+        state.hearts.forEach((h, i) => {
+            h.y += h.speed;
+            if (h.y > canvas.height + 50) {
+                state.hearts.splice(i, 1);
+                miss();
+            }
+        });
+
+        draw();
+        checkRescue();
+        requestAnimationFrame(update);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const lineY = canvas.height * 0.8;
+        ctx.strokeStyle = '#ff748c44';
+        ctx.setLineDash([10, 10]);
+        ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(canvas.width, lineY); ctx.stroke();
+        ctx.setLineDash([]);
+        state.hearts.forEach(h => drawHeart(h.x, h.y, h.size, 'var(--heart-pink)'));
+    }
+
+    function checkRescue() {
+        ANIMALS.forEach(a => {
+            if (state.score >= a.score && !state.savedLevels.includes(a.score)) {
+                state.savedLevels.push(a.score);
+                document.getElementById(`a-${a.score}`).classList.add('saved');
+                const alert = document.getElementById('rescueAlert');
+                alert.textContent = `✨ ${a.name} 구조 완료! ✨`;
+                alert.classList.add('show');
+                setTimeout(() => alert.classList.remove('show'), 1500);
+            }
+        });
+    }
+
+    function miss() {
+        state.combo = 0;
+        state.hp--;
+        document.getElementById('hpDisplay').textContent = "💗".repeat(Math.max(0, state.hp)) + "🖤".repeat(3 - state.hp);
+        document.getElementById('comboVal').textContent = 0;
+        if (state.hp <= 0) endGame();
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (!state.running) return;
+        const lineY = canvas.height * 0.8;
+        const targetIndex = state.hearts.findIndex(h => Math.abs(h.y - lineY) < 70);
+
+        if (targetIndex !== -1) {
+            playHeartSound();
+            state.hearts.splice(targetIndex, 1);
+            state.combo++;
+            state.score += 50 + (state.combo * 5);
+            document.getElementById('scoreVal').textContent = state.score;
+            document.getElementById('comboVal').textContent = state.combo;
+        } else {
+            miss();
+        }
+    });
+
+    function endGame() {
+        state.running = false;
+        const rescued = ANIMALS.filter(a => state.score >= a.score);
+        document.getElementById('rescueSummary').innerHTML = `최종 점수: ${state.score}점<br>총 <b>${rescued.length}마리</b>의 동물을 구조했습니다!`;
+        document.getElementById('rescuedEmojis').textContent = rescued.map(a => a.emoji).join(' ');
+
+        let ranks = JSON.parse(localStorage.getItem('pulseRanksV2') || '[]');
+        ranks.push(state.score);
+        ranks.sort((a, b) => b - a);
+        ranks = ranks.slice(0, 5);
+        localStorage.setItem('pulseRanksV2', JSON.stringify(ranks));
+
+        document.getElementById('leaderboard').innerHTML = ranks.map((r, i) => `
+            <div class="rank-item ${r === state.score ? 'highlight' : ''}">
+                <span>RANK ${i+1}</span><span>${r.toLocaleString()} pts</span>
+            </div>
+        `).join('');
+
+        document.getElementById('resultModal').classList.add('show');
+    }
+
+    // ==================== 새롭게 추가된 시작 로직 ====================
+    function initStart() {
+        // 오디오 초기화
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 인트로 화면 숨기기
+        document.getElementById('introScreen').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('introScreen').style.display = 'none';
+            startCountdown();
+        }, 500);
+    }
+
+    function startCountdown() {
+        const overlay = document.getElementById('countdownOverlay');
+        const text = document.getElementById('countdownText');
+        overlay.style.display = 'flex';
+        
+        let count = 3;
+        const countInterval = setInterval(() => {
+            if (count > 0) {
+                text.textContent = count;
+                playHeartSound();
+                count--;
+            } else if (count === 0) {
+                text.textContent = "시작!";
+                playHeartSound();
+                count--;
+            } else {
+                clearInterval(countInterval);
+                overlay.style.display = 'none';
+                state.running = true;
+                update(); // 게임 루프 시작
+            }
+        }, 1000);
+    }
+</script>
+</body>
+</html>
